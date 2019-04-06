@@ -33,20 +33,20 @@ class Config:
     build_path = ""
     repository_name = ""
     git_url = ""
-    commit_sha = ""
+    commit = ""
     patches = []
     env_settings = []
     toolchain_url = ""
     samples = []
     prebuild_commands = []
 
-    def __init__(self, config_path, repository_name, git_url, commit_sha, patches, env_settings, toolchain, samples, prebuild_commands):
+    def __init__(self, config_path, repository_name, git_url, commit, patches, env_settings, toolchain, samples, prebuild_commands):
         #all configs must be provided even if empty
         self.config_path = config_path #path to config.py
         self.config_dir_path = config_path.rsplit(os.sep, 1)[0] #path to the directory with config.py
         self.repository_name = repository_name #directory name to which the repository will be cloned
         self.git_url = git_url #URL of the git respository
-        self.commit_sha = commit_sha #commit SHA
+        self.commit = commit #commit SHA / branch / tag name
         self.patches = patches #list of patches to apply
         self.env_settings = env_settings #environment variables settings
         self.toolchain = toolchain #name of the toolchain to be used
@@ -149,10 +149,10 @@ def prepare_repository(cfg):
             log.debug('Fetching remotes...')
             remote_commit = repo.remotes[0].fetch()
 
-    #checkout to given SHA
-    if cfg.commit_sha != "":
-        log.debug('Checking out in repository: '+cfg.repository_name+' to SHA: '+cfg.commit_sha)
-        repo.git.reset("--hard", cfg.commit_sha) #reset target repository to given SHA
+    #checkout to given SHA / branch / tag
+    if cfg.commit != "":
+        log.debug('Checking out in repository: '+cfg.repository_name+' to SHA: '+cfg.commit)
+        repo.git.reset("--hard", cfg.commit) #reset target repository to given SHA / branch / tag
         repo.git.submodule("foreach", "--recursive", "git", "reset", "--hard") #clean the submodules from leftovers
         repo.git.submodule("foreach", "--recursive", "git", "clean", "-fxd")
         repo.git.submodule("update", "--init", "--recursive") #update submodules
@@ -249,14 +249,14 @@ def build_demos():
         d = locals() #set up the dictionary to read out the config.py
         d["repository_name"]=None
         d["git_url"]=None
-        d["commit_sha"]=None
+        d["commit"]=None
         d["patches"]=None
         d["env_settings"]=None
         d["toolchain"]=None
         d["samples"]=None
         d["prebuild_commands"]=None
         execfile(item, d) #load variables from config.py
-        conf_obj = Config(item, d["repository_name"], d["git_url"], d["commit_sha"], d["patches"], d["env_settings"], d["toolchain"], d["samples"], d["prebuild_commands"]) #initialize Config object for a target sample
+        conf_obj = Config(item, d["repository_name"], d["git_url"], d["commit"], d["patches"], d["env_settings"], d["toolchain"], d["samples"], d["prebuild_commands"]) #initialize Config object for a target sample
         if prepare_toolchain(conf_obj):
             continue
         if prepare_repository(conf_obj):

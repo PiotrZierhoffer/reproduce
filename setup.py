@@ -18,7 +18,7 @@ setup(
         'console_scripts': [
             'reproduce = reproduce:main',
         ]},
-    install_requires=['gitpython','logging'],
+    install_requires=['gitpython','logging','colorlog'],
     classifiers=[
         'Environment :: Console',
         'Intended Audience :: Developers',

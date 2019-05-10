@@ -33,20 +33,18 @@ class Config:
     build_path = ""
     repository_name = ""
     git_url = ""
-    commit = ""
     patches = []
     env_settings = []
     toolchain_url = ""
     samples = []
     prebuild_commands = []
 
-    def __init__(self, config_path, repository_name, git_url, commit, patches, env_settings, toolchain, samples, prebuild_commands):
+    def __init__(self, config_path, repository_name, git_url, patches, env_settings, toolchain, samples, prebuild_commands):
         #all configs must be provided even if empty
         self.config_path = config_path #path to config.py
         self.config_dir_path = config_path.rsplit(os.sep, 1)[0] #path to the directory with config.py
         self.repository_name = repository_name #directory name to which the repository will be cloned
         self.git_url = git_url #URL of the git respository
-        self.commit = commit #commit SHA / branch / tag name
         self.patches = patches #list of patches to apply
         self.env_settings = env_settings #environment variables settings
         self.toolchain = toolchain #name of the toolchain to be used
@@ -73,6 +71,7 @@ def prepare_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbosity. Use with GIT_PYTHON_TRACE=full for git debugging")
     parser.add_argument("-p", "--path", dest="demo_config_path", help="Set path to demo config file")
+    parser.add_argument("commit", action="store", nargs='?', help="Commit SHA to be built")
     return parser
 
 def search_configs():
@@ -128,7 +127,7 @@ def prepare_toolchain(cfg):
     log.info('Toolchain: '+cfg.toolchain+' configured.')
     return False
 
-def prepare_repository(cfg):
+def prepare_repository(cfg, commit):
     path = os.path.join(root_repository_dir, cfg.repository_name)
     if cfg.repository_name == "":
         error("Empty repository_name in: "+cfg.config_path)
@@ -150,9 +149,9 @@ def prepare_repository(cfg):
             remote_commit = repo.remotes[0].fetch()
 
     #checkout to given SHA / branch / tag
-    if cfg.commit != "":
-        log.debug('Checking out in repository: '+cfg.repository_name+' to SHA: '+cfg.commit)
-        repo.git.reset("--hard", cfg.commit) #reset target repository to given SHA / branch / tag
+    if commit != "":
+        log.debug('Checking out in repository: '+cfg.repository_name+' to SHA: '+commit)
+        repo.git.reset("--hard", commit) #reset target repository to given SHA / branch / tag
         repo.git.submodule("foreach", "--recursive", "git", "reset", "--hard") #clean the submodules from leftovers
         repo.git.submodule("foreach", "--recursive", "git", "clean", "-fxd")
         repo.git.submodule("update", "--init", "--recursive") #update submodules
@@ -244,22 +243,21 @@ def make_samples(cfg):
     os.chdir(this_path)
     return False
 
-def build_demos():
+def build_demos(commit):
     for item in demo_config_list:
         d = locals() #set up the dictionary to read out the config.py
         d["repository_name"]=None
         d["git_url"]=None
-        d["commit"]=None
         d["patches"]=None
         d["env_settings"]=None
         d["toolchain"]=None
         d["samples"]=None
         d["prebuild_commands"]=None
         execfile(item, d) #load variables from config.py
-        conf_obj = Config(item, d["repository_name"], d["git_url"], d["commit"], d["patches"], d["env_settings"], d["toolchain"], d["samples"], d["prebuild_commands"]) #initialize Config object for a target sample
+        conf_obj = Config(item, d["repository_name"], d["git_url"], d["patches"], d["env_settings"], d["toolchain"], d["samples"], d["prebuild_commands"]) #initialize Config object for a target sample
         if prepare_toolchain(conf_obj):
             continue
-        if prepare_repository(conf_obj):
+        if prepare_repository(conf_obj, commit):
             continue
         if prepare_environment(conf_obj):
             continue
@@ -288,7 +286,7 @@ def main():
     options = parser.parse_args()
     configure_logger()
     search_configs()
-    build_demos()
+    build_demos(options.commit)
     status = exit_status()
     print('Script exited with status %d.' % status)
     sys.exit(status)
